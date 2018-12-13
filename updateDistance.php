@@ -1,131 +1,117 @@
 <?php
 
-echo "<head><script src='conv.js'></head>"
+ini_set('display_errors', false);
 
-class MyDB extends SQLite3
-{
-    function __construct()
-    {
-        $this->open('db.sqlite');
-    }
-}
-
-$db = new MyDB();
+require("MyDB.php");
 
 $finPointArray = array();
 $finLatArray = array();
 $finLongArray = array();
+$allArcs = array();
+$allChemins = array();
 
-for ($i=1; $i<=259; $i++) {
-    $result = $db->query("SELECT * FROM GEO_POINT WHERE GEO_POI_ID=".$i);
+initFile($finPointArray, $finLatArray, $finLongArray, $allArcs, $allChemins);
 
-    $arrayData = $result->fetchArray();
+function initFile($finPointArray, $finLatArray, $finLongArray, $allArcs, $allChemins) {
+    $allArray = getAllPoints($finPointArray, $finLatArray, $finLongArray);
+    $allChemins = getAllArcs($allArcs, $allArray[0], $allArray[1], $allArray[2], $allChemins);
+    return $allChemins;
+}
 
+function getAllPoints($finPointArray, $finLatArray, $finLongArray) {
+    $db1 = new MyDB();
+    $result = $db1->query("SELECT * FROM GEO_POINT");
+    
+    array_push($finPointArray, 0);
+    array_push($finLatArray, 0);
+    array_push($finLongArray, 0);
+
+    while ($row = $result->fetchArray()) {
+        $tempLatArray = array();
+        $tempLongArray = array();
+
+        array_push($tempLatArray, $row[0]);
+        array_push($tempLatArray, $row[1]);
+        array_push($tempLongArray, $row[0]);
+        array_push($tempLongArray, $row[2]);
+
+        array_push($finPointArray, $row[0]);
+        array_push($finLatArray, $tempLatArray);
+        array_push($finLongArray, $tempLongArray);
+    }
+
+    return [$finPointArray, $finLatArray, $finLongArray];
+}
+
+
+function getAllArcs($allArcs, $finPointArray, $finLatArray, $finLongArray, $allChemins) {
+    $db2 = new MyDB();
+    $resultArc = $db2->query("SELECT * FROM GEO_ARC");
+    while ($row = $resultArc->fetchArray()) {
+        array_push($allArcs, $row);
+    }
     /*
-    echo "<pre>";
-    var_dump($arrayData[0]);
-    var_dump($arrayData[1]);
-    var_dump($arrayData[2]);
-    echo "</pre>";
+
+    echo "<pre>FinLatArray - ";
+    var_dump($finLatArray);
+    //var_dump($point1);
+    echo "</pre>"; 
+
+    echo "<pre>AllArcs - ";
+    var_dump($allArcs);
+    echo "</pre>"; 
+    echo count($allArcs) . " est le nombre d'arcs <br/>";
     */
-
-    array_push($finPointArray, $arrayData[0]);
-    array_push($finLatArray, $arrayData[1]);
-    array_push($finLongArray, $arrayData[2]);
-
-}
-
-/*
-echo "<pre>";
-var_dump(count($finPointArray));
-var_dump(count($finLatArray));
-var_dump(count($finLongArray));
-var_dump($finPointArray);
-var_dump($finLatArray);
-var_dump($finLongArray);
-echo "</pre>";
-*/
-
-
-$arcArrayId = array();
-$arcArrayDeb = array();
-$arcArrayFin = array();
-
-$distanceBetweenPoints = null;
-
-for ($j=1; $j<=count($finPointArray); $j++) {
-    $indexPlus = $j+1;
-    $point1 = $finPointArray[$j];
-    $point2 = $finPointArray[$indexPlus];
-
-    $p1Lat = $finLatArray[$j];
-    $p1Lng = $finLongArray[$j];
-    $p2Lat = $finLatArray[$indexPlus];
-    $p2Lng = $finLongArray[$indexPlus];
-
-    $newDistance = calculDistance($p1Lat, $p1Lng, $p2Lat, $p2Lng);
-    echo "<pre>";
-    var_dump($newDistance);
-    echo "</pre>";
-}
-
-/*
-echo "<pre>";
-var_dump($arcArray);
-echo "</pre>";
- */
-
-function calculDistance($p1Lat, $p1Lng, $p2Lat, $p2Lng) {
-
-    //CONVERSION EN LAMBERT II Etendu
-
-
-
-    $minusLat = $p1Lat - $p2Lat; //Y
-    $minusLng = $p1Lng - $p2Lng; //X
-
-    // =SQRT(POWER(G13;2) + POWER(H13;2)) / 1000
-    return sqrt(pow($minusLng, 2) + pow($minusLat, 2)) / 1000;
-}
-
-function conversionDecToLambIIEt() {
-
-}
-
-function calculLargeur() {
-    $graph = array(
-        array(0, 1, 1, 0, 0, 0),
-        array(1, 0, 0, 1, 0, 0),
-        array(1, 0, 0, 1, 1, 1),
-        array(0, 1, 1, 0, 1, 0),
-        array(0, 0, 1, 1, 0, 1),
-        array(0, 0, 1, 0, 1, 0),);
-        
-    function init($visited, $graph){
-    foreach ($graph as $key => $vertex) {
-        $visited[$key] = 0;
-    }
-    }
-    function breadthFirst($graph, $start, $visited){
-        $visited = array();
-        $queue = array();
-        init($visited, $graph);
-        array_push($queue, $start);
-        $visited[$start] = 1;
-        while (count($queue)) {
-            $t = array_shift($queue);
-            foreach ($graph[$t] as $key => $vertex) {
-                if (!$visited[$key] && $vertex == 1) {
-                    $visited[$key] = 1;
-                    array_push($queue, $key);
-                }
-            }
+    for ($s=0; $s<count($allArcs); $s++) {
+        $arrayChemins = array();
+        $db3 = new MyDB();
+        //echo $s." - ";
+        $chemin = $db3->query("SELECT * FROM GEO_ARC WHERE GEO_ARC_ID =".$allArcs[$s][0]);
+        while ($row = $chemin->fetchArray()) {
+            //var_dump($row);
+            $row["GEO_ARC_DISTANCE"] = calculDistance($row["GEO_ARC_DEB"], $row["GEO_ARC_FIN"], $finLatArray, $finLongArray);
+            array_push($arrayChemins, $row);
         }
-        print_r($visited);
+        array_push($allChemins, $arrayChemins);
     }
-    breadthFirst($graph, 2);
+
+    return $allChemins;
 }
 
+function calculDistance($point1, $point2, $finLatArray, $finLongArray) {
 
+    //echo "<script>console.log('CALCUL DISTANCE FOR ".$point1." & ".$point2."')</script>";
+
+    $point1 = $point1 - 1;
+    $point2 = $point2 - 1;
+
+    $p1Lat = $finLatArray[$point1][1];
+    $p1Lng = $finLongArray[$point1][1];
+    $p2Lat = $finLatArray[$point2][1];
+    $p2Lng = $finLongArray[$point2][1];
+
+    $unit = 'M';
+            
+    $rlat1 = pi() * $p1Lat/180;
+    $rlat2 = pi() * $p2Lat/180;
+    $rlon1 = pi() * $p1Lng/180;
+    $rlon2 = pi() * $p2Lng/180;
+    
+    $theta = $p1Lng-$p2Lng;
+    $rtheta = pi() * $theta/180;
+
+    $dist = sin($rlat1) * sin($rlat2) + cos($rlat1) * cos($rlat2) * cos($rtheta);
+    $dist = acos($dist);
+    $dist = $dist * 180/pi();
+    $dist = $dist * 60 * 1.1515;
+    
+    if ($unit=="K") { $dist = $dist * 1.609344; }
+    if ($unit == "M") { $dist = $dist * 1.609344 * 1000; }
+    if ($unit == "N") { $dist = $dist * 0.8684; }
+
+    //echo "<script>console.log('We got ".$dist." for ".$point1." and ".$point2."')</script>";
+    
+    return $dist;
+}
 
 ?>

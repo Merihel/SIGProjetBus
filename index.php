@@ -1,57 +1,38 @@
 <?php
+ini_set('display_errors', 1);
 
-require("Dijkstra.php");
+//require("updateDistance.php");
+require("MyDB.php");
 
-function runTest() {
-	$g = new Graph();
-
-	$g->addEdge("a", "b", 85);
-	$g->addEdge("b", "a", 85);
-	$g->addEdge("a", "c", 217);
-	$g->addEdge("c", "a", 217);
-	$g->addEdge("a", "e", 173);
-	$g->addEdge("e", "a", 173);
-
-	$g->addEdge("b", "f", 80);
-	$g->addEdge("f", "b", 80);
-
-	$g->addEdge("c", "g", 186);
-	$g->addEdge("g", "c", 186);
-	$g->addEdge("c", "h", 103);
-	$g->addEdge("h", "c", 103);
-
-	$g->addEdge("h", "d", 183);
-	$g->addEdge("d", "h", 183);
-	$g->addEdge("h", "j", 167);
-	$g->addEdge("j", "h", 167);
+function init() {
+	$db = new MyDB();
+	$pointName = $db->query("SELECT * FROM GEO_POINT");
 	
-	$g->addEdge("e", "j", 502);
-	$g->addEdge("j", "e", 502);
-	
-	$g->addEdge("f", "i", 250);
-	$g->addEdge("i", "f", 250);
+	echo "<form method='post' action='treatForm.php'>";
+	echo "<h5>Départ</h5>";
+	echo "<select name='dep'>";
 
-	$g->addEdge("i", "j", 84);
-	$g->addEdge("j", "i", 84);
+	while($row = $pointName->fetchArray()) {
+		echo "<option value='".$row[0]."'>".$row[0]."_".$row[3]."</option>";
+	}
+	echo "</select><br/>";
 
-	list($distances, $prev) = $g->paths_from("a");
-	
-	$path = $g->paths_to($prev, "j");
-	
-	print_r($path);
-	
-}
-//runTest();
+	echo "<h5>Destination</h5>";
+	echo "<select name='des'>";
 
-class MyDB extends SQLite3
-{
-    function __construct()
-    {
-        $this->open('db.sqlite');
-    }
+	while($row = $pointName->fetchArray()) {
+		echo "<option value='".$row[0]."'>".$row[0]."_".$row[3]."</option>";
+	}
+	echo "</select><br/><br/>";
+
+	echo "<input type='submit' name='submit' value='Telecharger le KML'>";
+	echo "</form>";
+
+	echo "<form method='GET' action='getFullKml.php'>";
+	echo "<input type='submit' name='submit2' value='Telecharger le KML complet'>";
+	echo "</form>";
 }
 
-$db = new MyDB();
+init();
 
-$result = $db->query('SELECT * FROM GEO_POINT WHERE GEO_POI_ID=1');
-var_dump($result->fetchArray());
+?>
